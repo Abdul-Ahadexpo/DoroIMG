@@ -38,6 +38,21 @@
     Made with ❤️ and Firebase
   </footer>
 
+
+
+
+
+  <!-- Skeleton Placeholder -->
+  <div id="skeletonPlaceholder"
+    class="hidden mt-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 w-11/12 p-4 rounded-md shadow-xl bg-white/90 backdrop-blur-xl animate-scale-in">
+    <div class="flex w-52 flex-col gap-4">
+      <div class="skeleton h-32 w-full bg-gray-300 animate-pulse"></div>
+      <div class="skeleton h-4 w-28 bg-gray-300 animate-pulse"></div>
+      <div class="skeleton h-4 w-full bg-gray-300 animate-pulse"></div>
+      <div class="skeleton h-4 w-full bg-gray-300 animate-pulse"></div>
+    </div>
+  </div>
+
   <script>
     // Firebase Configuration
     const firebaseConfig = {
@@ -56,33 +71,117 @@
 
     const photosContainer = document.getElementById("photos");
 
+
+
+
     function loadPhotos() {
+      const skeletonPlaceholder = document.getElementById("skeletonPlaceholder");
       photosContainer.innerHTML = "";
-      database.ref("photos").orderByChild("timestamp").on("value", (snapshot) => {
-        photosContainer.innerHTML = "";
-        snapshot.forEach((childSnapshot) => {
-          const photoData = childSnapshot.val();
 
-          const photoItem = document.createElement("div");
-          photoItem.className = "card w-full bg-base-100 shadow-xl transform transition-all hover:scale-105 hover:shadow-2xl duration-300";
+      skeletonPlaceholder.classList.remove("hidden");
 
-          photoItem.innerHTML = `
-            <figure class="max-h-72 overflow-hidden">
-              <img src="${photoData.image}" alt="Uploaded Photo" 
-  class="w-full object-cover transition-all hover:scale-110 duration-500" 
-  onclick="showPopup('${photoData.image}')">
+      setTimeout(() => {
+        database.ref("photos").orderByChild("timestamp").on("value", (snapshot) => {
+          photosContainer.innerHTML = "";
+          snapshot.forEach((childSnapshot) => {
+            const photoData = childSnapshot.val();
+            const photoId = childSnapshot.key;
 
-            </figure>
-            <div class="card-body">
-              <h6 class="text-gray-200 font-bold">By-${photoData.username || "Noname"}</h6>
-              <h2 class="card-title text-gray-200 font-bold text-lg">${photoData.title}</h2>
-              <p class="text-sm text-gray-500 mt-1">${new Date(photoData.timestamp).toLocaleString()}</p>
+            const photoItem = document.createElement("div");
+            photoItem.className = "card w-full bg-base-100 shadow-xl transform transition-all hover:scale-105 hover:shadow-2xl duration-300";
+
+            photoItem.innerHTML = `
+          <figure class="max-h-72 overflow-hidden">
+            <img src="${photoData.image}" alt="Uploaded Photo" class="w-full object-cover transition-all hover:scale-110 duration-500" onclick="showPopup('${photoData.image}')">
+          </figure>
+
+          <div class="card-body">
+            <h6 class="text-gray-200 font-bold">By-${photoData.username || "Noname"}</h6>
+            <h2 class="card-title text-gray-200 font-bold text-lg">${photoData.title}</h2>
+            <p class="text-sm text-gray-500 mt-1">${new Date(photoData.timestamp).toLocaleString()}</p>
+
+            <!-- Comment Button -->
+            <button onclick="toggleCommentSection('${photoId}')"
+                    class="btn btn-primary mt-2">Comment</button>
+
+            <!-- Download Button -->
+            <a href="${photoData.image}" download="${photoData.title || 'photo'}" target="_blank"
+               class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-5 py-2.5 text-center me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Download </a>
+
+            <!-- Comment Section (Hidden by Default) -->
+            <div id="comments-${photoId}" class="hidden mt-2 space-y-2">
+              <input id="comment-input-${photoId}" placeholder="Write a comment..."
+                     class="input input-bordered w-full mt-1 text-blue-500" type="text">
+              <button onclick="submitComment('${photoId}')"
+                      class="btn btn-secondary mt-2">Submit</button>
+
+              <div id="commentList-${photoId}" class="mt-2 text-sm text-blue-700"></div>
             </div>
-          `;
-          photosContainer.appendChild(photoItem);
+          </div>
+        `;
+
+            photosContainer.appendChild(photoItem);
+          });
+
+          skeletonPlaceholder.classList.add("hidden");
+        });
+      }, 2000);
+    }
+
+
+    // Toggle the comment section visibility
+    function toggleCommentSection(photoId) {
+      const section = document.getElementById(`comments-${photoId}`);
+      section.classList.toggle("hidden");
+    }
+
+    function submitComment(photoId) {
+      const inputField = document.getElementById(`comment-input-${photoId}`);
+      const commentText = inputField.value.trim();
+      if (commentText === "") return;
+
+      const commentsRef = database.ref(`comments/${photoId}`);
+      commentsRef.push({
+        text: commentText,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
+
+      inputField.value = "";
+
+      displayComments(photoId);
+    }
+    // Fetch and display comments dynamically
+    function displayComments(photoId) {
+      const commentList = document.getElementById(`commentList-${photoId}`);
+      commentList.innerHTML = "";
+
+      const commentsRef = database.ref(`comments/${photoId}`);
+      commentsRef.orderByChild("timestamp").on("value", snapshot => {
+        snapshot.forEach(commentSnapshot => {
+          const commentData = commentSnapshot.val();
+
+          // Create the comment HTML structure
+          const commentHTML = `
+        <div class="comment flex items-start gap-3 mt-2 p-2 bg-gray-100 rounded-lg">
+           <img src="${commentData.profilePic || 'https://th.bing.com/th/id/OIP.VMTgb6MHHlbIRdP9Hd6dmgHaHa?rs=1&pid=ImgDetMain'}"
+               alt="${commentData.username}'s avatar"
+               class="w-10 h-10 rounded-full object-cover">
+
+          <div>
+            <p class="font-bold text-gray-900">${commentData.username}</p>
+            <p class="text-gray-700">${commentData.text}</p>
+          </div>
+        </div>
+      `;
+
+          commentList.innerHTML += commentHTML;
         });
       });
     }
+
+
+
+
 
     // Load photos initially
     loadPhotos();
