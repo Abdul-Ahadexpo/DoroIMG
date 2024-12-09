@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Photo Gallery</title>
+
+  <!-- Firebase Compatibility Scripts -->
+  <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-database-compat.js"></script>
+
+  <!-- DaisyUI and Tailwind CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+
+
+</head>
+
+<body
+  class="bg-gradient-to-br from-gray-100 via-blue-50 to-gray-200 text-gray-800 font-sans min-h-screen flex flex-col items-center">
+
+  <!-- Header -->
+
+  <div class="navbar bg-neutral text-neutral-content">
+    <button class="btn btn-ghost text-xl">daisyUI</button>
+  </div>
+
+
+  <!-- Photos Gallery -->
+  <div id="photos"
+    class="mt-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 w-11/12 p-4 rounded-md shadow-xl bg-white/90 backdrop-blur-xl animate-scale-in">
+    <!-- Photos will be loaded dynamically -->
+  </div>
+
+  <!-- Footer -->
+  <footer class="mt-6 text-gray-500 text-sm">
+    Made with ❤️ and Firebase
+  </footer>
+
+  <script>
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDSWMPmzwyRoJf6ymBA56sqEu0hZRPXAFA",
+      authDomain: "dorochat-830bb.firebaseapp.com",
+      databaseURL: "https://dorochat-830bb-default-rtdb.firebaseio.com",
+      projectId: "dorochat-830bb",
+      storageBucket: "dorochat-830bb.appspot.com",
+      messagingSenderId: "390410096076",
+      appId: "1:390410096076:web:ef0cb4978c93b6be96a169"
+    };
+
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const photosContainer = document.getElementById("photos");
+
+    function loadPhotos() {
+      photosContainer.innerHTML = "";
+      database.ref("photos").orderByChild("timestamp").on("value", (snapshot) => {
+        photosContainer.innerHTML = "";
+        snapshot.forEach((childSnapshot) => {
+          const photoData = childSnapshot.val();
+
+          const photoItem = document.createElement("div");
+          photoItem.className = "card w-full bg-base-100 shadow-xl transform transition-all hover:scale-105 hover:shadow-2xl duration-300";
+
+          photoItem.innerHTML = `
+            <figure class="max-h-72 overflow-hidden">
+              <img src="${photoData.image}" alt="Uploaded Photo" 
+  class="w-full object-cover transition-all hover:scale-110 duration-500" 
+  onclick="showPopup('${photoData.image}')">
+
+            </figure>
+            <div class="card-body">
+              <h6 class="text-gray-200 font-bold">By-${photoData.username || "Noname"}</h6>
+              <h2 class="card-title text-gray-200 font-bold text-lg">${photoData.title}</h2>
+              <p class="text-sm text-gray-500 mt-1">${new Date(photoData.timestamp).toLocaleString()}</p>
+            </div>
+          `;
+          photosContainer.appendChild(photoItem);
+        });
+      });
+    }
+
+    // Load photos initially
+    loadPhotos();
+  </script>
+
+  <style>
+    /* Custom Animations */
+    @keyframes fade-in-down {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fade-in-up {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes scale-in {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .animate-fade-in-down {
+      animation: fade-in-down 0.8s ease-out;
+    }
+
+    .animate-fade-in-up {
+      animation: fade-in-up 0.8s ease-out;
+    }
+
+    .animate-scale-in {
+      animation: scale-in 0.8s ease-out;
+    }
+  </style>
+
+
+
+
+
+
+
+
+
+  <!-- pic popup -->
+  <script>function showPopup(imageSrc) {
+      const popup = document.getElementById("imagePopup");
+      const popupImage = document.getElementById("popupImage");
+      popupImage.src = imageSrc;
+      popup.classList.remove("hidden");
+    }
+
+    function closePopup() {
+      const popup = document.getElementById("imagePopup");
+      popup.classList.add("hidden");
+    }
+  </script>
+
+
+  <div id="imagePopup" class="fixed inset-0 flex items-center justify-center bg-black/80 z-50 hidden">
+    <div class="relative">
+      <img id="popupImage" class="max-w-full max-h-full object-contain rounded-lg shadow-lg">
+      <button id="ipb" onclick="closePopup()"
+        class="absolute top-4 right-4 z-60 inline-flex items-center justify-center p-0.5 overflow-hidden text-sm font-medium text-gray-900 rounded-lg group bg-gradient-to-br from-pink-500 to-orange-400 group-hover:from-pink-500 group-hover:to-orange-400 hover:text-white dark:text-white focus:ring-4 focus:outline-none focus:ring-pink-200 dark:focus:ring-pink-800">
+        <span
+          class="relative px-5 py-2.5 transition-all ease-in duration-75 bg-white dark:bg-gray-900 rounded-md group-hover:bg-opacity-0">
+          Close
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <style>
+    #ipb {
+      top: 4px;
+      position: absolute;
+      /* Distance from the top of the image */
+      right: 4px;
+      /* Distance from the right of the image */
+    }
+  </style>
+
+</body>
+
+</html>
