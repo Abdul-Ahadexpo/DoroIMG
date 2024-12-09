@@ -9,6 +9,8 @@
   <!-- Firebase Compatibility Scripts -->
   <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-database-compat.js"></script>
+  <!-- Firebase Authentication -->
+  <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-auth-compat.js"></script>
 
   <!-- DaisyUI and Tailwind CSS -->
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.19/dist/full.min.css" rel="stylesheet" type="text/css" />
@@ -22,9 +24,50 @@
 
   <!-- Header -->
 
-  <div class="navbar bg-neutral text-neutral-content">
-    <button class="btn btn-ghost text-xl">daisyUI</button>
+  <div class="navbar bg-gray-700 ">
+    <div class="flex-1">
+      <a class="btn btn-ghost text-xl text-green-500">~DoroSee~</a>
+    </div>
+    <div class="flex-none gap-2">
+
+      <div class="dropdown dropdown-end">
+        <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar">
+          <div class="w-10 rounded-full">
+            <!-- Profile Picture -->
+            <!-- Profile Picture -->
+            <img id="userProfilePic" alt="User Image" class="hidden w-14 h-14 rounded-full object-cover" />
+
+          </div>
+        </div>
+        <ul tabindex="0" class="menu menu-sm dropdown-content bg-slate-300 rounded-box z-[1] mt-3 w-52 p-2 shadow">
+
+
+          <li><a href="https://doro-chat-app.vercel.app/">Public Online Chat</a></li>
+
+          <li><a href="https://online-chato-appo.onrender.com/">Privet Online Chat</a></li>
+
+          <li><a href="https://doro-img.vercel.app/">See posts</a></li>
+
+          <li><a onclick="signOut()">Logout</a></li>
+
+        </ul>
+      </div>
+    </div>
   </div>
+
+
+
+  <!-- Sign in with Google Button -->
+  <button onclick="signInWithGoogle()" class="btn btn-primary mt-4">
+    Sign In with Google
+  </button>
+
+
+
+
+
+
+
 
 
   <!-- Photos Gallery -->
@@ -64,10 +107,102 @@
       messagingSenderId: "390410096076",
       appId: "1:390410096076:web:ef0cb4978c93b6be96a169"
     };
-
     // Initialize Firebase
     const app = firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
     const database = firebase.database();
+
+
+    // Set persistence to local to maintain the user's session across page reloads
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .then(() => {
+        console.log("Persistence has been set to LOCAL.");
+      })
+      .catch((error) => {
+        console.error("Persistence setting error:", error);
+      });
+
+    // Check if the user is already logged in
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        console.log("User is signed in:", user.displayName);
+
+        // Show Google account profile picture
+        const userProfilePic = document.getElementById("userProfilePic");
+        if (user.photoURL) {
+          userProfilePic.src = user.photoURL;
+          userProfilePic.classList.remove('hidden');
+        }
+
+        // Display the user's name
+        const userName = document.getElementById("userName");
+        if (user.displayName) {
+          userName.innerText = `Name: ${user.displayName}`;
+        } else {
+          userName.innerText = `Name: ${user.email}`;
+        }
+
+        document.querySelector('.btn.btn-primary.mt-4').style.display = 'none';
+        document.querySelector('.btn.btn-secondary.mt-2').style.display = 'inline-block';
+
+      } else {
+        console.log("No user signed in.");
+        const userProfilePic = document.getElementById("userProfilePic");
+        userProfilePic.classList.add('hidden');
+        const userName = document.getElementById("userName");
+        userName.innerText = "Name: Not signed in";
+
+        document.querySelector('.btn.btn-primary.mt-4').style.display = 'inline-block';
+        document.querySelector('.btn.btn-secondary.mt-2').style.display = 'none';
+      }
+    });
+
+
+    // Enable persistence to maintain sessions across refresh
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .then(() => console.log("Persistence set to LOCAL"))
+      .catch((error) => console.error("Persistence Error:", error));
+
+    function signInWithGoogle() {
+      const provider = new firebase.auth.GoogleAuthProvider();
+
+      auth.signInWithPopup(provider)
+        .then((result) => {
+          const user = result.user;
+
+          console.log("Signed in as:", user.displayName);
+
+          // Show the user's profile picture
+          const userProfilePic = document.getElementById("userProfilePic");
+          if (user.photoURL) {
+            userProfilePic.src = user.photoURL;
+            userProfilePic.classList.remove("hidden");
+          }
+
+          // Display user's name
+          const userName = document.getElementById("userName");
+          if (user.displayName) {
+            userName.innerText = `Name: ${user.displayName}`;
+          } else {
+            userName.innerText = `Name: ${user.email}`;
+          }
+
+          document.querySelector('.btn.btn-primary.mt-4').style.display = 'none';
+          document.querySelector('.btn.btn-secondary.mt-2').style.display = 'inline-block';
+        })
+        .catch((error) => {
+          console.error("Google Sign-In Error:", error.message);
+        });
+    }
+
+
+
+    // Sign-out function
+    function signOut() {
+      auth.signOut()
+        .then(() => alert('Signed out successfully'))
+        .catch((error) => console.error('Sign-out Error:', error));
+    }
 
     const photosContainer = document.getElementById("photos");
 
@@ -140,16 +275,20 @@
       const commentText = inputField.value.trim();
       if (commentText === "") return;
 
+      const user = auth.currentUser;
+
       const commentsRef = database.ref(`comments/${photoId}`);
       commentsRef.push({
         text: commentText,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        username: user?.displayName || user?.email,
+        profilePic: user?.photoURL || 'https://th.bing.com/th/id/OIP.VMTgb6MHHlbIRdP9Hd6dmgHaHa?rs=1&pid=ImgDetMain'
       });
 
       inputField.value = "";
-
       displayComments(photoId);
     }
+
     // Fetch and display comments dynamically
     function displayComments(photoId) {
       const commentList = document.getElementById(`commentList-${photoId}`);
