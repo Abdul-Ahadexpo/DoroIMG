@@ -261,7 +261,7 @@
 
             <!-- Show Liked Users -->
             <button class="text-blue-500 underline" onclick="showLikedUsers('${photoId}')">
-              View Liked Users
+             ${photoData.likes ? Object.keys(photoData.likes).length : 0} Likes
             </button>
 
             <!-- Comment Button -->
