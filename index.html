@@ -163,37 +163,53 @@
       .then(() => console.log("Persistence set to LOCAL"))
       .catch((error) => console.error("Persistence Error:", error));
 
+    // Listen for authentication state changes
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        // User is signed in
+        console.log("User signed in:", user.displayName);
+
+        const userProfilePic = document.getElementById("userProfilePic");
+        const userName = document.getElementById("userName");
+
+        if (user.photoURL) {
+          userProfilePic.src = user.photoURL;
+          userProfilePic.classList.remove("hidden");
+        }
+
+        if (user.displayName) {
+          userName.innerText = `Name: ${user.displayName}`;
+        } else {
+          userName.innerText = `Name: ${user.email}`;
+        }
+
+        // Hide the "Sign In with Google" button and show the secondary button
+        document.querySelector('.btn.btn-primary.mt-4').style.display = 'none';
+        document.querySelector('.btn.btn-secondary.mt-2').style.display = 'inline-block';
+
+      } else {
+        // User is signed out
+        console.log("No user signed in");
+
+        // Show the "Sign In with Google" button
+        document.querySelector('.btn.btn-primary.mt-4').style.display = 'inline-block';
+        document.querySelector('.btn.btn-secondary.mt-2').style.display = 'none';
+      }
+    });
+
     function signInWithGoogle() {
       const provider = new firebase.auth.GoogleAuthProvider();
 
       auth.signInWithPopup(provider)
         .then((result) => {
           const user = result.user;
-
           console.log("Signed in as:", user.displayName);
-
-          // Show the user's profile picture
-          const userProfilePic = document.getElementById("userProfilePic");
-          if (user.photoURL) {
-            userProfilePic.src = user.photoURL;
-            userProfilePic.classList.remove("hidden");
-          }
-
-          // Display user's name
-          const userName = document.getElementById("userName");
-          if (user.displayName) {
-            userName.innerText = `Name: ${user.displayName}`;
-          } else {
-            userName.innerText = `Name: ${user.email}`;
-          }
-
-          document.querySelector('.btn.btn-primary.mt-4').style.display = 'none';
-          document.querySelector('.btn.btn-secondary.mt-2').style.display = 'inline-block';
         })
         .catch((error) => {
           console.error("Google Sign-In Error:", error.message);
         });
     }
+
 
 
 
@@ -205,7 +221,6 @@
     }
 
     const photosContainer = document.getElementById("photos");
-
 
 
 
@@ -235,6 +250,20 @@
             <h2 class="card-title text-gray-200 font-bold text-lg">${photoData.title}</h2>
             <p class="text-sm text-gray-500 mt-1">${new Date(photoData.timestamp).toLocaleString()}</p>
 
+        <!-- Like Button -->
+<button id="like-${photoId}" class="flex items-center gap-2 text-red-500 hover:text-red-600 flex flex-col relative left-24" onclick="toggleLike('${photoId}')">
+  <span class="material-icons bg-gray-500/50 text-white rounded-full p-2 flex items-center justify-center">
+    💗
+  </span>
+  <span id="likes-count-${photoId}">${photoData.likes ? Object.keys(photoData.likes).length : 0}</span>
+</button>
+
+
+            <!-- Show Liked Users -->
+            <button class="text-blue-500 underline" onclick="showLikedUsers('${photoId}')">
+              View Liked Users
+            </button>
+
             <!-- Comment Button -->
             <button onclick="toggleCommentSection('${photoId}')"
                     class="btn btn-primary mt-2">Comment</button>
@@ -257,11 +286,62 @@
 
             photosContainer.appendChild(photoItem);
           });
-
           skeletonPlaceholder.classList.add("hidden");
         });
-      }, 2000);
+      }, 1000);
     }
+
+    function toggleLike(photoId) {
+      const userId = auth.currentUser.uid;
+      const likesRef = database.ref(`photos/${photoId}/likes`);
+
+      likesRef.once("value", (snapshot) => {
+        if (snapshot.hasChild(userId)) {
+          // Remove like
+          likesRef.child(userId).remove();
+        } else {
+          // Add like
+          likesRef.child(userId).set({
+            username: auth.currentUser.displayName,
+            photoURL: auth.currentUser.photoURL,
+          });
+        }
+      });
+    }
+
+    function showLikedUsers(photoId) {
+      const likesRef = database.ref(`photos/${photoId}/likes`);
+      likesRef.once("value", (snapshot) => {
+        const likedUsers = snapshot.val();
+        let userDetails = "";
+
+        for (const userId in likedUsers) {
+          const user = likedUsers[userId];
+          userDetails += `
+        <div class="flex items-center gap-4 p-2">
+          <img src="${user.photoURL}" class="w-10 h-10 rounded-full" alt="User Photo">
+          <p>${user.username}</p>
+        </div>
+      `;
+        }
+
+        // Show the popup
+        const popup = document.createElement("div");
+        popup.className = "fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75";
+        popup.innerHTML = `
+      <div class="bg-white rounded-lg p-6 max-w-md w-full">
+        <h2 class="text-xl font-bold mb-4">Liked Users</h2>
+        ${userDetails || "<p>No likes yet.</p>"}
+        <button onclick="this.parentElement.parentElement.remove()" class="btn btn-secondary mt-4">Close</button>
+      </div>
+    `;
+        document.body.appendChild(popup);
+      });
+    }
+
+
+
+
 
 
     // Toggle the comment section visibility
