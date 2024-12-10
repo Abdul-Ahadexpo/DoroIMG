@@ -241,48 +241,49 @@
             photoItem.className = "card w-full bg-base-100 shadow-xl transform transition-all hover:scale-105 hover:shadow-2xl duration-300";
 
             photoItem.innerHTML = `
-          <figure class="max-h-72 overflow-hidden">
-            <img src="${photoData.image}" alt="Uploaded Photo" class="w-full object-cover transition-all hover:scale-110 duration-500" onclick="showPopup('${photoData.image}')">
-          </figure>
+  <figure class="max-h-72 overflow-hidden">
+    <img src="${photoData.image}" alt="Uploaded Photo" class="w-full object-cover transition-all hover:scale-110 duration-500" onclick="showPopup('${photoData.image}')">
+  </figure>
 
-          <div class="card-body">
-            <h6 class="text-gray-200 font-bold">By-${photoData.username || "Noname"}</h6>
-            <h2 class="card-title text-gray-200 font-bold text-lg">${photoData.title}</h2>
-            <p class="text-sm text-gray-500 mt-1">${new Date(photoData.timestamp).toLocaleString()}</p>
+  <div class="card-body">
+    <h6 class="text-gray-200 font-bold">By-${photoData.username || "Noname"}</h6>
+    <h2 class="card-title text-gray-200 font-bold text-lg">${photoData.title}</h2>
+    <p class="text-sm text-gray-500 mt-1">${new Date(photoData.timestamp).toLocaleString()}</p>
 
-        <!-- Like Button -->
-<button id="like-${photoId}" class="flex items-center gap-2 text-red-500 hover:text-red-600 flex flex-col relative left-24" onclick="toggleLike('${photoId}')">
-  <span class="material-icons bg-gray-500/50 text-white rounded-full p-2 flex items-center justify-center">
-    💗
-  </span>
-  <span id="likes-count-${photoId}">${photoData.likes ? Object.keys(photoData.likes).length : 0}</span>
-</button>
+    <!-- Like Button -->
+    <button id="like-${photoId}" class="flex items-center gap-2 text-red-500 hover:text-red-600 flex flex-col relative left-24" onclick="toggleLike('${photoId}')">
+      <span class="material-icons bg-gray-500/50 text-white rounded-full p-2 flex items-center justify-center">
+        💗
+      </span>
+      <span id="likes-count-${photoId}">${photoData.likes ? Object.keys(photoData.likes).length : 0}</span>
+    </button>
+
+    <!-- Show Liked Users -->
+    <button class="text-blue-500 underline" onclick="showLikedUsers('${photoId}')">
+      ${photoData.likes ? Object.keys(photoData.likes).length : 0} Likes
+    </button>
+
+    <!-- Comment Button -->
+    <button onclick="toggleCommentSection('${photoId}')"
+            class="btn btn-primary mt-2">Comment</button>
+
+    <!-- Download Button -->
+    <a href="${photoData.image}" download="${photoData.title || 'photo'}" target="_blank"
+       class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-5 py-2.5 text-center me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Download</a>
+
+    <!-- Comment Section (Hidden by Default) -->
+    <div id="comments-${photoId}" class="hidden mt-2 space-y-2">
+      <input id="comment-input-${photoId}" placeholder="Write a comment..."
+             class="input input-bordered w-full mt-1 text-blue-500" type="text">
+      <button onclick="submitComment('${photoId}')"
+              class="btn btn-secondary mt-2">Submit</button>
+
+      <div id="commentList-${photoId}" class="mt-2 text-sm text-blue-700"></div>
+    </div>
+  </div>
+`;
 
 
-            <!-- Show Liked Users -->
-            <button class="text-blue-500 underline" onclick="showLikedUsers('${photoId}')">
-             ${photoData.likes ? Object.keys(photoData.likes).length : 0} Likes
-            </button>
-
-            <!-- Comment Button -->
-            <button onclick="toggleCommentSection('${photoId}')"
-                    class="btn btn-primary mt-2">Comment</button>
-
-            <!-- Download Button -->
-            <a href="${photoData.image}" download="${photoData.title || 'photo'}" target="_blank"
-               class="text-white bg-blue-700 hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 font-medium rounded-full text-sm px-5 py-2.5 text-center me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Download </a>
-
-            <!-- Comment Section (Hidden by Default) -->
-            <div id="comments-${photoId}" class="hidden mt-2 space-y-2">
-              <input id="comment-input-${photoId}" placeholder="Write a comment..."
-                     class="input input-bordered w-full mt-1 text-blue-500" type="text">
-              <button onclick="submitComment('${photoId}')"
-                      class="btn btn-secondary mt-2">Submit</button>
-
-              <div id="commentList-${photoId}" class="mt-2 text-sm text-blue-700"></div>
-            </div>
-          </div>
-        `;
 
             photosContainer.appendChild(photoItem);
           });
@@ -348,6 +349,11 @@
     function toggleCommentSection(photoId) {
       const section = document.getElementById(`comments-${photoId}`);
       section.classList.toggle("hidden");
+
+      // Load comments when the section is made visible
+      if (!section.classList.contains("hidden")) {
+        displayComments(photoId);
+      }
     }
 
     function submitComment(photoId) {
@@ -369,14 +375,22 @@
       displayComments(photoId);
     }
 
+
     // Fetch and display comments dynamically
     function displayComments(photoId) {
       const commentList = document.getElementById(`commentList-${photoId}`);
+      if (!commentList) {
+        console.error(`Element with ID commentList-${photoId} not found.`);
+        return;
+      }
+
       commentList.innerHTML = "";
 
       const commentsRef = database.ref(`comments/${photoId}`);
-      commentsRef.orderByChild("timestamp").on("value", snapshot => {
-        snapshot.forEach(commentSnapshot => {
+      commentsRef.orderByChild("timestamp").on("value", (snapshot) => {
+        commentList.innerHTML = ""; // Clear existing comments
+
+        snapshot.forEach((commentSnapshot) => {
           const commentData = commentSnapshot.val();
 
           // Create the comment HTML structure
@@ -395,10 +409,31 @@
 
           commentList.innerHTML += commentHTML;
         });
+      }, (error) => {
+        console.error("Error fetching comments:", error.message);
       });
     }
 
 
+
+    function deleteComment(photoId, commentId) {
+      const commentRef = database.ref(`photos/${photoId}/comments/${commentId}`);
+
+      commentRef.once("value", (snapshot) => {
+        const commentData = snapshot.val();
+
+        if (commentData && commentData.userId === auth.currentUser.uid) {
+          // Delete the comment
+          commentRef.remove().then(() => {
+            alert("Comment deleted successfully!");
+          }).catch((error) => {
+            console.error("Error deleting comment:", error);
+          });
+        } else {
+          alert("You can only delete your own comments!");
+        }
+      });
+    }
 
 
 
@@ -407,6 +442,20 @@
   </script>
 
   <style>
+    .hidden {
+      display: none;
+    }
+
+    .comment {
+      background-color: #f9f9f9;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    .add-comment {
+      margin-top: 10px;
+    }
+
     /* Custom Animations */
     @keyframes fade-in-down {
       from {
@@ -456,10 +505,6 @@
       animation: scale-in 0.8s ease-out;
     }
   </style>
-
-
-
-
 
 
 
